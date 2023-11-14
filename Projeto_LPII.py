@@ -3,6 +3,7 @@ import json
 
 resultados = []
 
+# função para buscar no .csv por termo
 def buscar(termo_de_busca, coluna):
     with open('projeto_LP_tweets_2022.csv', 'r', encoding='utf-8') as arquivo_csv:
         leitor_csv = csv.DictReader(arquivo_csv)
@@ -15,6 +16,7 @@ def buscar(termo_de_busca, coluna):
                 })
             print(f'{linha["date"]}  |  {linha["content"]}  |  {linha["subject"]}')
 
+# função para salvar resultado em arquivo.json
 def salvar(arquivo_saida):
     with open(arquivo_saida, 'w') as arquivo_json:
         json.dump(resultados, arquivo_json, indent=4)
