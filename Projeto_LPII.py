@@ -1,63 +1,104 @@
 import csv
 import json
+import os
 
-resultados = []
+class GerenciadorTweets:
+    def __init__(self, caminho_csv):
+        self.caminho_csv = caminho_csv
+        self.resultados = []
 
-# função para buscar no .csv por termo
-def buscar(termo_de_busca, coluna):
-    with open('projeto_LP_tweets_2022.csv', 'r', encoding='utf-8') as arquivo_csv:
-        leitor_csv = csv.DictReader(arquivo_csv)
-        for linha in leitor_csv:
-            if termo_de_busca.lower() in linha[coluna].lower():
-                resultados.append({
-                    'data': linha['date'],
-                    'conteudo': linha['content'],
-                    'assunto': linha['subject']
-                })
-            print(f'{linha["date"]}  |  {linha["content"]}  |  {linha["subject"]}')
+    def buscar(self, termo_de_busca, coluna):
+        """Busca um termo em uma coluna específica do CSV."""
+        if not os.path.exists(self.caminho_csv):
+            print(f"\n[ERRO] Arquivo '{self.caminho_csv}' não encontrado!")
+            return
 
-# função para salvar resultado em arquivo.json
-def salvar(arquivo_saida):
-    with open(arquivo_saida, 'w') as arquivo_json:
-        json.dump(resultados, arquivo_json, indent=4)
+        termo_de_busca = termo_de_busca.strip().lower()
+        encontrou = False
+        
+        # 'utf-8-sig' resolve problemas de caracteres ocultos no início do arquivo
+        with open(self.caminho_csv, 'r', encoding='utf-8-sig') as arquivo_csv:
+            # Detecta automaticamente se o separador é vírgula ou ponto e vírgula
+            dialeto = csv.Sniffer().sniff(arquivo_csv.read(1024))
+            arquivo_csv.seek(0)
+            leitor = csv.DictReader(arquivo_csv, dialect=dialeto)
 
-# função para buscar tweets por data
-def buscar_por_data():
-    data = input('Digite a data no formato "AAAA-MM-DD": ')
-    buscar(data, 'date')
+            for linha in leitor:
+                # Limpa espaços nos nomes das colunas
+                linha = {k.strip().lower(): v for k, v in linha.items() if k}
+                
+                valor_coluna = linha.get(coluna.lower(), "")
+                if termo_de_busca in valor_coluna.lower():
+                    self.resultados.append({
+                        'data': linha.get('date', 'N/A'),
+                        'conteudo': linha.get('content', 'N/A'),
+                        'assunto': linha.get('subject', 'N/A')
+                    })
+                    encontrou = True
+        
+        if encontrou:
+            print(f"\n✅ Busca concluída! {len(self.resultados)} itens no total acumulado.")
+        else:
+            print(f"\n⚠️ Nenhum resultado novo para '{termo_de_busca}'.")
 
-# função para buscar tweets por termo
-def buscar_por_termo():
-    termo = input('Digite o termo de busca: ')
-    buscar(termo, 'content')
+    def salvar_json(self, nome_arquivo):
+        """Salva a lista de resultados em um arquivo JSON."""
+        if not self.resultados:
+            print("\n[AVISO] Não há resultados para salvar. A lista está vazia.")
+            return
 
-# função para buscar tweets por assunto
-def buscar_por_assunto():
-    assunto = input('Digite o assunto de busca: ')
-    buscar(assunto, 'subject')
+        try:
+            with open(nome_arquivo, 'w', encoding='utf-8') as f:
+                json.dump(self.resultados, f, indent=4, ensure_ascii=False)
+            print(f"\n💾 Sucesso! Arquivo '{nome_arquivo}' gerado com {len(self.resultados)} registros.")
+        except Exception as e:
+            print(f"\n[ERRO] Falha ao salvar: {e}")
 
-# menu principal
-while True:
-    print('\nBoas vindas ao nosso sistema:\n')
-    print('1 - Buscar tweets por data')
-    print('2 - Buscar tweets por termo')
-    print('3 - Buscar tweets por assunto')
-    print('4 - Salvar resultado da busca')
-    print('5 - Sair')
+    def limpar_resultados(self):
+        self.resultados = []
+        print("\n🧹 Memória de busca limpa.")
 
-    opcao = input('Escolha uma opção: ')
+# --- Interface de Menu ---
 
-    if opcao == '1':
-        buscar_por_data()
-    elif opcao == '2':
-        buscar_por_termo()
-    elif opcao == '3':
-        buscar_por_assunto()
-    elif opcao == '4':
-        salvar('resultado_da_busca.json')
-        print('Arquivo salvo como "resultado_da_busca.json"')
-    elif opcao == '5':
-        print('Saindo do programa. Até mais!')
-        break
-    else:
-        print('Opção inválida. Escolha uma opção de 1 a 5.')
+def menu():
+    # Inicializa o gerenciador com o nome do seu arquivo
+    app = GerenciadorTweets('projeto_LP_tweets_2022.csv')
+
+    io_opcoes = {
+        '1': ('data', 'date'),
+        '2': ('termo', 'content'),
+        '3': ('assunto', 'subject')
+    }
+
+    while True:
+        print('\n' + '='*30)
+        print(' SISTEMA DE BUSCA DE TWEETS')
+        print('='*30)
+        print('1 - Buscar por DATA (AAAA-MM-DD)')
+        print('2 - Buscar por CONTEÚDO (Termo)')
+        print('3 - Buscar por ASSUNTO')
+        print('4 - Salvar busca em JSON')
+        print('5 - Limpar buscas anteriores')
+        print('6 - Sair')
+        
+        opcao = input('\nEscolha uma opção: ')
+
+        if opcao in io_opcoes:
+            label, coluna = io_opcoes[opcao]
+            termo = input(f'Digite o {label} de busca: ')
+            app.buscar(termo, coluna)
+        
+        elif opcao == '4':
+            app.salvar_json('resultado_da_busca.json')
+        
+        elif opcao == '5':
+            app.limpar_resultados()
+            
+        elif opcao == '6':
+            print('Saindo... Até logo!')
+            break
+        else:
+            print('Opção inválida!')
+
+if __name__ == "__main__":
+    menu()
